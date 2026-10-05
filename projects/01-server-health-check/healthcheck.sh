@@ -14,8 +14,14 @@ echo "################################################"
 echo ""
 #
 # Prints the CPU load average of the server
+echo "------- CPU Info -------"
 echo " CPU load average: $(uptime | awk -F'load average: ' '{print $2}')"
 echo ""
 # Prints your memory usage in percentage
+echo "------- Memory Usage -------"
 echo " Memory Usage Percentage: $(free | awk '/Mem:/ {printf "%.2f%%\n", $3/$2 * 100}')"
-
+echo ""
+# Prints the disk usage for \
+echo "------- / Disk Usage  -------"
+echo " Disk usage Percentage: $(df -h / | awk 'NR==2 {print $5}') "
+echo ""
