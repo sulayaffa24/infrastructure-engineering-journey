@@ -5,6 +5,7 @@
 # ----- Script Header ------
 echo "################################################"
 echo ""
+echo " Operating System: $(hostnamectl | grep "Operating System" | awk -F':' '{print $2}')"
 echo " Hostname: $(hostname)"
 echo " Date and Time: $(date)"
 echo " Uptime: $(uptime)"
