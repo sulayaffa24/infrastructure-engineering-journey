@@ -25,3 +25,7 @@ echo ""
 echo "------- / Disk Usage  -------"
 echo " Disk usage Percentage: $(df -h / | awk 'NR==2 {print $5}') "
 echo ""
+# Prints the top 5 processes by memory usage
+echo "------- Top 5 Processes -------"
+echo "$(ps -eo pid,%mem,comm --sort=-%mem | head -n 6)"
+echo ""
