@@ -7,12 +7,14 @@
 
 OPERATING_SYSTEM=$(hostnamectl | grep "Operating System" | awk -F':' '{print $2}')
 HOSTNAME=$(hostname)
-DATE_AND_TIME=$date
+DATE_AND_TIME=$(date)
 UPTIME_PRETTY=$(uptime -p)
 CPU_LOAD_AVERAGE=$(uptime | awk -F'load average: ' '{print $2}')
 MEMORY_USAGE_PERCENTAGE=$(free | awk '/Mem:/ {printf "%.2f%%\n", $3/$2 * 100}')
-DISK_USAGE_PERCENTAGE=$(DF -H / | awk 'NR==2 {print $5}')
+DISK_USAGE_PERCENTAGE=$(df -h / | awk 'NR==2 {print $5}')
 TOP_5_PROCESSES=$(ps -eo pid,%mem,comm --sort=-%mem | head -n 6)
+SSH_SERVICE="ssh"
+CRON_SERVICE="cron"
 
 # ------- Script Header -------
 echo "################################################"
@@ -41,3 +43,16 @@ echo ""
 echo "------- Top 5 Processes -------"
 echo "$TOP_5_PROCESSES"
 echo ""
+echo "------- State of SSH and CRON ------- "
+if systemctl is-active --quiet "$SSH_SERVICE"; then
+	echo "The $SSH_SERVICE service is running"
+else
+	echo "The $SSH_SERVICE service is not running"
+fi
+echo ""
+if systemctl is-active --quiet "$CRON_SERVICE"; then
+	echo "The $CRON_SERVICE service is running"
+else
+	echo "The $CRON_SERVICE service is not running"
+fi
+
