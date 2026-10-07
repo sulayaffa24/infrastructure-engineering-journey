@@ -47,7 +47,7 @@ echo "------- State of Services ------- "
 # Looping through each service in an array
 for SERVICE in "${SERVICES[@]}"; do
 	# Check if the service is currently running
-	if systemctl -is-active --quiet "$SERVICE"; then
+	if systemctl is-active --quiet "$SERVICE"; then
 		echo "$SERVICE is RUNNING"
 	else
 		echo "$SERVICE has STOPPED"
