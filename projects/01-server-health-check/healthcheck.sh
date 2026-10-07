@@ -6,21 +6,24 @@
 #
 
 OPERATING_SYSTEM=$(hostnamectl | grep "Operating System" | awk -F':' '{print $2}')
-HOSTNAME=$(hostname)
+HOST_NAME=$(hostname)
 DATE_AND_TIME=$(date)
 UPTIME_PRETTY=$(uptime -p)
 CPU_LOAD_AVERAGE=$(uptime | awk -F'load average: ' '{print $2}')
-MEMORY_USAGE_PERCENTAGE=$(free | awk '/Mem:/ {printf "%.2f%%\n", $3/$2 * 100}')
-DISK_USAGE_PERCENTAGE=$(df -h / | awk 'NR==2 {print $5}')
-TOP_5_PROCESSES=$(ps -eo pid,%mem,comm --sort=-%mem | head -n 6)
+MEMORY_USAGE=$(free | awk '/Mem:/ {printf "%.0f\n", $3/$2 * 100}')
+DISK_USAGE=$(df -h / | awk 'NR==2 { sub("%", "", $5); print $5 }')
+TOP_5_PROCESSES=$(ps -eo pid,%mem,args --sort=-%mem | head -n 6)
 SERVICES=("ssh" "cron") # bash array
+THRESHOLD=10
+EXIT_CODE=0
+WARNING=0
 # -------------------------------------------------------------------------------
 
 # ------- Script Header -------
 echo "################################################"
 echo ""
 echo " Operating System: $OPERATING_SYSTEM"
-echo " Hostname: $HOSTNAME"
+echo " Hostname: $HOST_NAME"
 echo " Date and Time: $DATE_AND_TIME"
 echo " Uptime: $UPTIME_PRETTY"
 echo ""
@@ -29,15 +32,15 @@ echo ""
 #
 # Prints the CPU load average of the server
 echo "------- CPU Info -------"
-echo " CPU load average: $CPU_LOAD_AVERAGE"
+echo " Your CPU load average is $CPU_LOAD_AVERAGE on a $(nproc) core processor"
 echo ""
 # Prints your memory usage in percentage
 echo "------- Memory Usage -------"
-echo " Memory Usage Percentage: $MEMORY_USAGE_PERCENTAGE"
+echo " Memory Usage Percentage: $MEMORY_USAGE"
 echo ""
-# Prints the disk usage for \
+# Prints the disk usage for /
 echo "------- / Disk Usage  -------"
-echo " Disk usage Percentage: $DISK_USAGE_PERCENTAGE"
+echo " Disk usage Percentage: $DISK_USAGE"
 echo ""
 # Prints the top 5 processes by memory usage
 echo "------- Top 5 Processes -------"
@@ -53,4 +56,14 @@ for SERVICE in "${SERVICES[@]}"; do
 		echo "$SERVICE has STOPPED"
 	fi
 done
+# Threshold Warning
+echo "------- Disk or Memory Usage -------"
+if [ $MEMORY_USAGE -gt $THRESHOLD ] || [ $DISK_USAGE -gt $THRESHOLD ]
+then
+	echo -e  "\033[31mWARNING: Your disk or memory usage is above the threshold $THRESHOLD%!\033[m"
+	echo $?
+else
+	echo -e "\033[32mYour disk or memory usage is below the threshold $THRESHOLD%\033[m"
+	echo $?
+fi
 
