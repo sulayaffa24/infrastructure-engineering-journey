@@ -14,20 +14,37 @@ MEMORY_USAGE=$(free | awk '/Mem:/ {printf "%.0f\n", $3/$2 * 100}')
 DISK_USAGE=$(df -h / | awk 'NR==2 { sub("%", "", $5); print $5 }')
 TOP_5_PROCESSES=$(ps -eo pid,%mem,args --sort=-%mem | head -n 6)
 SERVICES=("ssh" "cron") # bash array
-THRESHOLD=10
-EXIT_CODE=0
+THRESHOLD=${1:-80}
 WARNING=0
+LOG_FILES="$HOME/healthcheck.log"
+
+# --- Color ---
+
+if [-t 1]; then
+	RED="\033[31m"
+	GREEN="\033[32m"
+	RESET="\033[0m"
+else
+	RED=""
+	GREEN=""
+	RESET=""
+fi
+
 # -------------------------------------------------------------------------------
 
 # ------- Script Header -------
-echo "################################################"
+{
 echo ""
+echo "==========================================================================="
+echo " [LOG ENTRY] Timestamp: $(date) | Hostname: $HOST_NAME"
+echo "==========================================================================="
+echo "#####################################################"
 echo " Operating System: $OPERATING_SYSTEM"
 echo " Hostname: $HOST_NAME"
 echo " Date and Time: $DATE_AND_TIME"
 echo " Uptime: $UPTIME_PRETTY"
 echo ""
-echo "################################################"
+echo "#####################################################"
 echo ""
 #
 # Prints the CPU load average of the server
@@ -49,21 +66,40 @@ echo ""
 echo "------- State of Services ------- "
 # Looping through each service in an array
 for SERVICE in "${SERVICES[@]}"; do
+	# Get the service state (e.g., active, inactive, failed, unknown)
+	SERVICE_STATE=$(systemctl is-active "$SERVICE")
 	# Check if the service is currently running
-	if systemctl is-active --quiet "$SERVICE"; then
-		echo "$SERVICE is RUNNING"
+	if [ "$SERVICE_STATE" = "active" ]; then
+		echo -e "${GRREN}$SERVICE is RUNNING [state: $SERVICE_STATE]${RESET}"
 	else
-		echo "$SERVICE has STOPPED"
+		echo -e "${RED}$SERVICE is not running [state: $SERVICE_STATE]${RESET}"
+		WARNING=1
 	fi
 done
 # Threshold Warning
 echo "------- Disk or Memory Usage -------"
-if [ $MEMORY_USAGE -gt $THRESHOLD ] || [ $DISK_USAGE -gt $THRESHOLD ]
+if [ "$MEMORY_USAGE" -gt "$THRESHOLD" ];
 then
-	echo -e  "\033[31mWARNING: Your disk or memory usage is above the threshold $THRESHOLD%!\033[m"
-	echo $?
+	echo -e  "${RED}WARNING: Memory usage at $MEMORY_USAGE% (threshold $THRESHOLD%)${RESET}"
+	WARNING=1
 else
-	echo -e "\033[32mYour disk or memory usage is below the threshold $THRESHOLD%\033[m"
-	echo $?
+	echo -e "${GREEN}Your memory usage is below the threshold $THRESHOLD%${RESET}"
 fi
+if [ "$DISK_USAGE" -gt "$THRESHOLD" ];
+then
+	echo -e "${RED}WARNING: Disk usage at $DISK_USAGE% (threshold $THRESHOLD%)${RESET}"
+	WARNING=1
+else
+	echo -e "${GREEN}Your disk usage is below the threshold $THRESHOLD%${RESET}"
 
+fi
+echo ""
+echo "============================================================================"
+echo " [END OF LOG ENTRY]"
+echo "============================================================================"
+echo ""
+
+} | tee -a "$LOG_FILE"
+
+# Exit with 1 if any warning fired
+exit "$WARNING"
