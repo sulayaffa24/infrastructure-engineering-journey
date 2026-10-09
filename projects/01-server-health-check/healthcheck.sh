@@ -16,11 +16,14 @@ TOP_5_PROCESSES=$(ps -eo pid,%mem,args --sort=-%mem | head -n 6)
 SERVICES=("ssh" "cron") # bash array
 THRESHOLD=${1:-80}
 WARNING=0
-LOG_FILES="$HOME/healthcheck.log"
+REPORT_FILE=$(mktemp)
+trap 'rm -f "$REPORT_FILE"' EXIT
+LOG_FILE="$HOME/healthcheck.log"
 
 # --- Color ---
 
-if [-t 1]; then
+if [ -t 1 ];
+then
 	RED="\033[31m"
 	GREEN="\033[32m"
 	RESET="\033[0m"
@@ -30,18 +33,32 @@ else
 	RESET=""
 fi
 
+# ------ Input validation ---------
+#
+if [ "$#" -ge 1 ]; then
+	if [ -z "$1" ] ||! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt 100 ];
+then
+	echo -e "${RED}Error: Invalid threshold received ('$1'). Must be a whole number between 1 and 100.${RESET}" >&2
+	echo "Usage: ./healthcheck.sh [threshold_1_100]" >&2
+	exit 2
+	fi
+	THRESHOLD="$1"
+else
+	THRESHOLD=80	
+fi
+
+
 # -------------------------------------------------------------------------------
 
 # ------- Script Header -------
 {
 echo ""
 echo "==========================================================================="
-echo " [LOG ENTRY] Timestamp: $(date) | Hostname: $HOST_NAME"
+echo " [LOG ENTRY] Timestamp: $DATE_AND_TIME | Hostname: $HOST_NAME"
 echo "==========================================================================="
 echo "#####################################################"
 echo " Operating System: $OPERATING_SYSTEM"
 echo " Hostname: $HOST_NAME"
-echo " Date and Time: $DATE_AND_TIME"
 echo " Uptime: $UPTIME_PRETTY"
 echo ""
 echo "#####################################################"
@@ -70,7 +87,7 @@ for SERVICE in "${SERVICES[@]}"; do
 	SERVICE_STATE=$(systemctl is-active "$SERVICE")
 	# Check if the service is currently running
 	if [ "$SERVICE_STATE" = "active" ]; then
-		echo -e "${GRREN}$SERVICE is RUNNING [state: $SERVICE_STATE]${RESET}"
+		echo -e "${GREEN}$SERVICE is RUNNING [state: $SERVICE_STATE]${RESET}"
 	else
 		echo -e "${RED}$SERVICE is not running [state: $SERVICE_STATE]${RESET}"
 		WARNING=1
@@ -99,7 +116,11 @@ echo " [END OF LOG ENTRY]"
 echo "============================================================================"
 echo ""
 
-} | tee -a "$LOG_FILE"
+} > "$REPORT_FILE"
+
+cat "$REPORT_FILE"
+
+sed -r 's/\x1B\[[0-9]{1,2}(;[0-9]{1,2})?[m|K]//g' "$REPORT_FILE" >> "$LOG_FILE"
 
 # Exit with 1 if any warning fired
 exit "$WARNING"
