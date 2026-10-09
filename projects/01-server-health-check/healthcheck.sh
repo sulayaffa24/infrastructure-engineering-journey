@@ -14,7 +14,8 @@ MEMORY_USAGE=$(free | awk '/Mem:/ {printf "%.0f\n", $3/$2 * 100}')
 DISK_USAGE=$(df -h / | awk 'NR==2 { sub("%", "", $5); print $5 }')
 TOP_5_PROCESSES=$(ps -eo pid,%mem,args --sort=-%mem | head -n 6)
 SERVICES=("ssh" "cron") # bash array
-THRESHOLD=${1:-80}
+
+
 WARNING=0
 REPORT_FILE=$(mktemp)
 trap 'rm -f "$REPORT_FILE"' EXIT
@@ -36,7 +37,7 @@ fi
 # ------ Input validation ---------
 #
 if [ "$#" -ge 1 ]; then
-	if [ -z "$1" ] ||! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 1 ] || [ "$1" -gt 100 ];
+	if [[ -z "$1" ]] || ! [[ "$1" =~ ^[0-9]{1,3}$ ]] || [ "$1" -lt 1 ]  || [ "$1" -gt 100 ];
 then
 	echo -e "${RED}Error: Invalid threshold received ('$1'). Must be a whole number between 1 and 100.${RESET}" >&2
 	echo "Usage: ./healthcheck.sh [threshold_1_100]" >&2
@@ -52,6 +53,7 @@ fi
 
 # ------- Script Header -------
 {
+
 echo ""
 echo "==========================================================================="
 echo " [LOG ENTRY] Timestamp: $DATE_AND_TIME | Hostname: $HOST_NAME"
@@ -118,9 +120,12 @@ echo ""
 
 } > "$REPORT_FILE"
 
-cat "$REPORT_FILE"
+if [ -t 1 ];
+then
+	cat "$REPORT_FILE"
+fi
 
-sed -r 's/\x1B\[[0-9]{1,2}(;[0-9]{1,2})?[m|K]//g' "$REPORT_FILE" >> "$LOG_FILE"
+sed 's/\x1B\[[0-9;]*[a-zA-Z]//g' "$REPORT_FILE" >> "$LOG_FILE"
 
 # Exit with 1 if any warning fired
 exit "$WARNING"
